@@ -1,0 +1,160 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Zen Kaku Gothic New", -apple-system, "Hiragino Kaku Gothic ProN", sans-serif;
+
+  --color-bg-deep: #09090b;
+  --color-bg-base: #0e0e10;
+  --color-surface: #17171a;
+  --color-surface-hi: #202023;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-hi: rgba(255, 255, 255, 0.18);
+
+  --color-ink: #f4f4f5;
+  --color-ink-dim: #a1a1aa;
+  --color-ink-faint: #71717a;
+
+  --color-brand-1: #e4e4e7;
+  --color-brand-2: #a1a1aa;
+  --color-brand-3: #52525b;
+
+  --color-good: #d4d4d8;
+  --color-warn: #d4d4d8;
+  --color-bad: #f4f4f5;
+
+  /* subtle light-on-dark hover/press overlays; flipped to dark-on-light in [data-theme="light"] */
+  --color-overlay: #ffffff;
+}
+
+/* Light theme: overrides the same custom properties Tailwind's utilities
+   already reference (bg-surface, text-ink, ...), so no class-name switching
+   is needed anywhere in the app — only this token block differs. */
+:root[data-theme="light"] {
+  --color-bg-deep: #f1f1f3;
+  --color-bg-base: #f8f8f9;
+  --color-surface: #ffffff;
+  --color-surface-hi: #f1f1f3;
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-hi: rgba(0, 0, 0, 0.14);
+
+  --color-ink: #18181b;
+  --color-ink-dim: #52525b;
+  --color-ink-faint: #8a8a92;
+
+  --color-brand-1: #3f3f46;
+  --color-brand-2: #71717a;
+  --color-brand-3: #d4d4d8;
+
+  --color-good: #52525b;
+  --color-warn: #52525b;
+  --color-bad: #18181b;
+
+  --color-overlay: #000000;
+
+  --aurora-center: #eaeaec;
+  --aurora-1a: #d4d4d8;
+  --aurora-1b: #a1a1aa;
+  --aurora-2a: #e4e4e7;
+  --aurora-2b: #b8b8bd;
+  --aurora-3a: #d0d0d4;
+  --aurora-3b: #f4f4f5;
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: var(--color-bg-base);
+  overflow: hidden;
+  user-select: none;
+}
+
+input,
+textarea {
+  user-select: text;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-hi);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ink-faint);
+}
+
+:root {
+  --aurora-center: #1c1c1f;
+  --aurora-1a: #6b7280;
+  --aurora-1b: #3f3f46;
+  --aurora-2a: #a1a1aa;
+  --aurora-2b: #52525b;
+  --aurora-3a: #71717a;
+  --aurora-3b: #27272a;
+}
+
+.aurora-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: radial-gradient(120% 120% at 50% -10%, var(--aurora-center) 0%, var(--color-bg-deep) 60%);
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(90px);
+  opacity: 0.35;
+  will-change: transform;
+}
+
+@keyframes drift-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(6%, 8%) scale(1.12); }
+}
+@keyframes drift-b {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-8%, -6%) scale(1.08); }
+}
+
+/* Circular-reveal theme switch, built on the View Transitions API: the new
+   theme is unclipped from a growing circle centered on the click point. */
+::view-transition-group(root) {
+  animation-duration: 0.6s;
+}
+::view-transition-old(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-new(root) {
+  animation: theme-circle-reveal 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+  mix-blend-mode: normal;
+}
+
+@keyframes theme-circle-reveal {
+  from {
+    clip-path: circle(0px at var(--reveal-x, 50%) var(--reveal-y, 50%));
+  }
+  to {
+    clip-path: circle(var(--reveal-r, 150%) at var(--reveal-x, 50%) var(--reveal-y, 50%));
+  }
+}
+
