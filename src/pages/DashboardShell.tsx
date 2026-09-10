@@ -2,16 +2,18 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 import { TabBar } from "../components/TabBar";
 import { ThemeToggle } from "../components/ThemeToggle";
-import { IconCalendar, IconMail, IconSettings } from "../components/icons";
+import { IconCalendar, IconChat, IconMail, IconSettings } from "../components/icons";
 import { tabVariants } from "../lib/motion";
 import { useAuth } from "../state/AuthContext";
 import { CalendarTab } from "./CalendarTab";
+import { ChatTab } from "./ChatTab";
 import { MailTab } from "./MailTab";
 import { SettingsTab } from "./SettingsTab";
 
 const TABS = [
   { id: "calendar", label: "カレンダー", icon: <IconCalendar /> },
   { id: "mail", label: "メール", icon: <IconMail /> },
+  { id: "chat", label: "チャット", icon: <IconChat /> },
   { id: "settings", label: "設定", icon: <IconSettings /> },
 ];
 
@@ -51,6 +53,7 @@ export function DashboardShell() {
           >
             {active === "calendar" && <CalendarTab />}
             {active === "mail" && <MailTab />}
+            {active === "chat" && <ChatTab />}
             {active === "settings" && <SettingsTab />}
           </motion.div>
         </AnimatePresence>

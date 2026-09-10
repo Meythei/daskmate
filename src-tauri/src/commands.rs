@@ -14,14 +14,19 @@ fn store_of(app: &AppHandle) -> Result<Arc<tauri_plugin_store::Store<tauri::Wry>
 }
 
 #[tauri::command]
-pub async fn start_google_login(
-    app: AppHandle,
-    client_id: String,
-    client_secret: String,
-    firebase_api_key: String,
-) -> Result<AuthProfile, String> {
-    let (tokens, profile) =
-        auth::login_with_google(&app, client_id, client_secret, firebase_api_key).await?;
+pub fn is_configured(app: AppHandle) -> bool {
+    app.state::<Arc<AppState>>().config.is_some()
+}
+
+#[tauri::command]
+pub async fn start_google_login(app: AppHandle) -> Result<AuthProfile, String> {
+    let config = app
+        .state::<Arc<AppState>>()
+        .config
+        .clone()
+        .ok_or_else(|| "GOOGLE_CLIENT_ID / FIREBASE_API_KEY が .env に設定されていません".to_string())?;
+
+    let (tokens, profile) = auth::login_with_google(&app, &config).await?;
 
     auth::keychain::save(&tokens)?;
     let store = store_of(&app)?;
@@ -157,6 +162,18 @@ pub async fn quick_fill_template(
 pub async fn delete_calendar_event(app: AppHandle, event_id: String) -> Result<(), String> {
     let state = app.state::<Arc<AppState>>();
     google_api::delete_event(&state, &event_id).await
+}
+
+#[tauri::command]
+pub async fn list_chat_spaces(app: AppHandle) -> Result<Vec<google_api::ChatSpace>, String> {
+    let state = app.state::<Arc<AppState>>();
+    google_api::list_chat_spaces(&state).await
+}
+
+#[tauri::command]
+pub async fn send_chat_message(app: AppHandle, space_name: String, text: String) -> Result<(), String> {
+    let state = app.state::<Arc<AppState>>();
+    google_api::send_chat_message(&state, &space_name, &text).await
 }
 
 #[tauri::command]

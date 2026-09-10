@@ -1,4 +1,4 @@
-import type { AuthProfile, CalendarEvent, EventTemplate, MailNotice, Settings } from "./types";
+import type { AuthProfile, CalendarEvent, ChatSpace, EventTemplate, MailNotice, Settings } from "./types";
 
 // When this app is opened as a plain web page (e.g. `vite dev` in a browser,
 // used only to preview/design the UI) there is no Tauri runtime backing the
@@ -39,6 +39,11 @@ class MockBackend {
   };
   eventsByDate: Record<string, CalendarEvent[]> = {};
   seq = 100;
+  chatSpaces: ChatSpace[] = [
+    { name: "spaces/mock-team", display_name: "チームスペース", space_type: "SPACE" },
+    { name: "spaces/mock-project", display_name: "プロジェクトX", space_type: "GROUP_CHAT" },
+    { name: "spaces/mock-dm", display_name: "ダイレクトメッセージ", space_type: "DIRECT_MESSAGE" },
+  ];
 
   seedIfNeeded(date: string) {
     if (this.eventsByDate[date]) return;
@@ -177,6 +182,8 @@ export async function invokeCmd<T>(cmd: string, args?: Record<string, unknown>):
   await new Promise((r) => setTimeout(r, 220 + Math.random() * 260));
 
   switch (cmd) {
+    case "is_configured":
+      return true as unknown as T;
     case "start_google_login":
       mock.loggedIn = true;
       return mock.profile as unknown as T;
@@ -206,6 +213,15 @@ export async function invokeCmd<T>(cmd: string, args?: Record<string, unknown>):
     case "poll_mail_now": {
       const notice: MailNotice = { from: "client@example.co.jp", subject: "【至急】見積もりの件" };
       setTimeout(() => emitMock("mail://new", notice), 400);
+      return undefined as unknown as T;
+    }
+    case "list_chat_spaces":
+      return mock.chatSpaces as unknown as T;
+    case "send_chat_message": {
+      const spaceName = args?.spaceName as string;
+      if (!mock.chatSpaces.some((s) => s.name === spaceName)) {
+        throw new Error("スペースが見つかりません");
+      }
       return undefined as unknown as T;
     }
     default:

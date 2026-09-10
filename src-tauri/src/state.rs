@@ -77,14 +77,16 @@ impl Default for Settings {
 
 pub struct AppState {
     pub http: reqwest::Client,
+    pub config: Option<crate::config::Config>,
     pub tokens: Mutex<Option<TokenState>>,
     pub poll_handle: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl AppState {
-    pub fn new() -> Self {
+    pub fn new(config: Option<crate::config::Config>) -> Self {
         Self {
             http: reqwest::Client::new(),
+            config,
             tokens: Mutex::new(None),
             poll_handle: Mutex::new(None),
         }

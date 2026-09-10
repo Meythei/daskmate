@@ -303,3 +303,69 @@ pub async fn quick_fill(
         }
     }
 }
+
+// ---------- Google Chat ----------
+
+#[derive(Serialize, Clone)]
+pub struct ChatSpace {
+    pub name: String, // "spaces/AAAAxxxxxxx"
+    pub display_name: String,
+    pub space_type: String, // "SPACE" | "GROUP_CHAT" | "DIRECT_MESSAGE"
+}
+
+fn parse_space(v: &serde_json::Value) -> Option<ChatSpace> {
+    let name = v.get("name")?.as_str()?.to_string();
+    let space_type = v
+        .get("spaceType")
+        .and_then(|s| s.as_str())
+        .unwrap_or("SPACE")
+        .to_string();
+    let display_name = v
+        .get("displayName")
+        .and_then(|s| s.as_str())
+        .filter(|s| !s.is_empty())
+        .map(String::from)
+        .unwrap_or_else(|| match space_type.as_str() {
+            "DIRECT_MESSAGE" => "ダイレクトメッセージ".to_string(),
+            "GROUP_CHAT" => "グループチャット".to_string(),
+            _ => name.clone(),
+        });
+    Some(ChatSpace {
+        name,
+        display_name,
+        space_type,
+    })
+}
+
+/// Lists the Chat spaces (rooms, group chats, DMs) the signed-in user belongs
+/// to, across all pages.
+pub async fn list_chat_spaces(state: &AppState) -> Result<Vec<ChatSpace>, String> {
+    let mut spaces = Vec::new();
+    let mut page_token: Option<String> = None;
+    loop {
+        let mut url = "https://chat.googleapis.com/v1/spaces?pageSize=100".to_string();
+        if let Some(token) = &page_token {
+            url.push_str(&format!("&pageToken={}", auth_encode(token)));
+        }
+        let json = authorized_request(state, reqwest::Method::GET, &url, None).await?;
+        if let Some(items) = json.get("spaces").and_then(|s| s.as_array()) {
+            spaces.extend(items.iter().filter_map(parse_space));
+        }
+        page_token = json
+            .get("nextPageToken")
+            .and_then(|t| t.as_str())
+            .map(String::from);
+        if page_token.is_none() {
+            break;
+        }
+    }
+    Ok(spaces)
+}
+
+/// Sends a plain-text message to a Chat space as the signed-in user.
+pub async fn send_chat_message(state: &AppState, space_name: &str, text: &str) -> Result<(), String> {
+    let url = format!("https://chat.googleapis.com/v1/{space_name}/messages");
+    let body = json!({ "text": text });
+    authorized_request(state, reqwest::Method::POST, &url, Some(body)).await?;
+    Ok(())
+}

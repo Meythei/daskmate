@@ -13,7 +13,7 @@ const FIREBASE_SIGNIN_IDP_URL: &str =
     "https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp";
 const FIREBASE_REFRESH_URL: &str = "https://securetoken.googleapis.com/v1/token";
 
-const SCOPES: &str = "openid email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar";
+const SCOPES: &str = "openid email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/chat.spaces.readonly https://www.googleapis.com/auth/chat.messages.create";
 
 fn now_unix() -> i64 {
     SystemTime::now()
@@ -84,28 +84,30 @@ struct FirebaseSignInResponse {
 /// show its consent screen inside an embedded webview (Tauri's webview included).
 pub async fn login_with_google(
     _app: &tauri::AppHandle,
-    client_id: String,
-    client_secret: String,
-    firebase_api_key: String,
+    config: &crate::config::Config,
 ) -> Result<(TokenState, AuthProfile), String> {
     let code_verifier = random_url_safe(64);
     let code_challenge = pkce_challenge(&code_verifier);
     let csrf_state = random_url_safe(16);
 
-    // Bind an ephemeral local port for the redirect.
-    let server = tiny_http::Server::http("127.0.0.1:0")
-        .map_err(|e| format!("ローカル待受サーバーの起動に失敗しました: {e}"))?;
-    let port = server
-        .server_addr()
-        .to_ip()
-        .ok_or_else(|| "ローカルポートの取得に失敗しました".to_string())?
-        .port();
-    let redirect_uri = format!("http://127.0.0.1:{port}/callback");
+    let redirect_uri = config.google_redirect_uri.clone();
+    let parsed_redirect = url::Url::parse(&redirect_uri)
+        .map_err(|e| format!("GOOGLE_REDIRECT_URI が不正です: {e}"))?;
+    let host = parsed_redirect.host_str().unwrap_or("127.0.0.1").to_string();
+    let port = parsed_redirect.port().unwrap_or(80);
+    let callback_path = parsed_redirect.path().to_string();
+
+    // Bind the configured loopback host/port for the redirect.
+    let server = tiny_http::Server::http(format!("{host}:{port}")).map_err(|e| {
+        format!(
+            "ローカル待受サーバー ({host}:{port}) の起動に失敗しました。他のアプリがこのポートを使用していないか確認するか、GOOGLE_REDIRECT_URI のポートを変更してください: {e}"
+        )
+    })?;
 
     let auth_url = format!(
         "{base}?client_id={cid}&redirect_uri={redir}&response_type=code&scope={scope}&code_challenge={chal}&code_challenge_method=S256&state={state}&access_type=offline&prompt=consent%20select_account",
         base = GOOGLE_AUTH_URL,
-        cid = urlencoding::encode(&client_id),
+        cid = urlencoding::encode(&config.google_client_id),
         redir = urlencoding::encode(&redirect_uri),
         scope = urlencoding::encode(SCOPES),
         chal = code_challenge,
@@ -123,13 +125,13 @@ pub async fn login_with_google(
                 .map_err(|e| e.to_string())?
                 .ok_or_else(|| "ログインがタイムアウトしました".to_string())?;
             let url = request.url().to_string();
-            if !url.starts_with("/callback") {
+            if !url.starts_with(&callback_path) {
                 let response = tiny_http::Response::from_string("not found")
                     .with_status_code(404);
                 let _ = request.respond(response);
                 continue;
             }
-            let parsed = url::Url::parse(&format!("http://127.0.0.1{url}")).map_err(|e| e.to_string())?;
+            let parsed = url::Url::parse(&format!("http://{host}:{port}{url}")).map_err(|e| e.to_string())?;
             let mut code: Option<String> = None;
             let mut state: Option<String> = None;
             let mut err: Option<String> = None;
@@ -168,14 +170,14 @@ pub async fn login_with_google(
     let http = reqwest::Client::new();
 
     let mut form = vec![
-        ("client_id", client_id.clone()),
+        ("client_id", config.google_client_id.clone()),
         ("code", code),
         ("code_verifier", code_verifier),
         ("grant_type", "authorization_code".to_string()),
         ("redirect_uri", redirect_uri),
     ];
-    if !client_secret.is_empty() {
-        form.push(("client_secret", client_secret.clone()));
+    if !config.google_client_secret.is_empty() {
+        form.push(("client_secret", config.google_client_secret.clone()));
     }
 
     let token_res: GoogleTokenResponse = http
@@ -199,7 +201,7 @@ pub async fn login_with_google(
 
     let firebase_res: FirebaseSignInResponse = http
         .post(FIREBASE_SIGNIN_IDP_URL)
-        .query(&[("key", firebase_api_key.as_str())])
+        .query(&[("key", config.firebase_api_key.as_str())])
         .json(&json!({
             "postBody": format!("id_token={id_token}&providerId=google.com"),
             "requestUri": "http://localhost",
@@ -221,9 +223,9 @@ pub async fn login_with_google(
         firebase_id_token: firebase_res.id_token,
         firebase_refresh_token: firebase_res.refresh_token,
         firebase_uid: firebase_res.local_id.clone(),
-        client_id,
-        client_secret,
-        firebase_api_key,
+        client_id: config.google_client_id.clone(),
+        client_secret: config.google_client_secret.clone(),
+        firebase_api_key: config.firebase_api_key.clone(),
     };
     let profile = AuthProfile {
         email,

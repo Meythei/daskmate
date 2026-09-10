@@ -33,3 +33,9 @@ export interface MailNotice {
   from: string;
   subject: string;
 }
+
+export interface ChatSpace {
+  name: string; // "spaces/AAAAxxxxxxx"
+  display_name: string;
+  space_type: string; // "SPACE" | "GROUP_CHAT" | "DIRECT_MESSAGE"
+}

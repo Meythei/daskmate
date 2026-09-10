@@ -1,14 +1,10 @@
-import { config } from "../config";
 import { invokeCmd } from "./tauri";
-import type { AuthProfile, CalendarEvent, Settings } from "./types";
+import type { AuthProfile, CalendarEvent, ChatSpace, Settings } from "./types";
 
 export const api = {
-  startGoogleLogin: () =>
-    invokeCmd<AuthProfile>("start_google_login", {
-      clientId: config.googleClientId,
-      clientSecret: config.googleClientSecret,
-      firebaseApiKey: config.firebaseApiKey,
-    }),
+  isConfigured: () => invokeCmd<boolean>("is_configured"),
+
+  startGoogleLogin: () => invokeCmd<AuthProfile>("start_google_login"),
 
   checkStoredLogin: () => invokeCmd<AuthProfile | null>("check_stored_login"),
 
@@ -26,6 +22,11 @@ export const api = {
     invokeCmd<CalendarEvent[]>("quick_fill_template", { date, templateId }),
 
   deleteCalendarEvent: (eventId: string) => invokeCmd<void>("delete_calendar_event", { eventId }),
+
+  listChatSpaces: () => invokeCmd<ChatSpace[]>("list_chat_spaces"),
+
+  sendChatMessage: (spaceName: string, text: string) =>
+    invokeCmd<void>("send_chat_message", { spaceName, text }),
 
   pollMailNow: () => invokeCmd<void>("poll_mail_now"),
 };

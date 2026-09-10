@@ -1,8 +1,8 @@
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AuroraBackground } from "../components/AuroraBackground";
 import { IconLogoMark } from "../components/icons";
-import { isConfigured } from "../config";
+import { api } from "../lib/api";
 import { pageVariants } from "../lib/motion";
 import { useAuth } from "../state/AuthContext";
 
@@ -32,6 +32,11 @@ function GoogleMark() {
 export function LoginPage() {
   const { login, error } = useAuth();
   const [pending, setPending] = useState(false);
+  const [configured, setConfigured] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    api.isConfigured().then(setConfigured).catch(() => setConfigured(false));
+  }, []);
 
   const handleLogin = async () => {
     setPending(true);
@@ -71,7 +76,7 @@ export function LoginPage() {
           transition={{ delay: 0.2, type: "spring", stiffness: 260, damping: 26 }}
           className="rounded-2xl border border-border bg-surface/80 p-6 shadow-2xl backdrop-blur-md"
         >
-          {!isConfigured && (
+          {configured === false && (
             <div className="mb-4 rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-xs leading-relaxed text-warn">
               Google / Firebase の接続情報が未設定です。<code>.env</code> を設定してください（SETUP.md参照）。
               プレビュー用にモックデータでログインできます。
